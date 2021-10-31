@@ -9,3 +9,6 @@ __pycache__/
 *.tc_backward.*
 *.log
 *.bak
+nohup.out
+problems/vrp/.ipynb_checkpoints/
+utils/__init__.pyc
