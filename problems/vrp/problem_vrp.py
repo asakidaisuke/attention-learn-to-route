@@ -171,6 +171,7 @@ def create_time_window(size, window_scale = 15):
             t[0] = temp
         elif t[0] == t[1]:
             t[1] = t[1] + int(window_scale * 0.4)
+        t[1] += 1  # prevent unsined jobs
     tensor = torch.cat((torch.zeros((1, 2)), tensor))
     return tensor
 

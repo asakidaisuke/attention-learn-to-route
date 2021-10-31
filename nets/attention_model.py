@@ -83,7 +83,8 @@ class AttentionModel(nn.Module):
             if self.is_pctsp:
                 node_dim = 4  # x, y, expected_prize, penalty
             else:
-                node_dim = 3  # x, y, demand / prize
+                # node_dim = 3  # x, y, demand / prize
+                node_dim = 5 # CHANGE dim
 
             # Special embedding projection for depot node
             self.init_embed_depot = nn.Linear(2, embedding_dim)
@@ -211,10 +212,13 @@ class AttentionModel(nn.Module):
             return torch.cat(
                 (
                     self.init_embed_depot(input['depot'])[:, None, :],
-                    self.init_embed(torch.cat((
-                        input['loc'],
-                        *(input[feat][:, :, None] for feat in features)
-                    ), -1))
+                    # CHANGE input
+                    self.init_embed(torch.cat((input['loc'], *(input[feat][:, :, None] for feat in ('demand',)),
+                               input['time_window'][:, 1:, :]), -1))
+                    # self.init_embed(torch.cat((
+                    #     input['loc'],
+                    #     *(input[feat][:, :, None] for feat in features)
+                    # ), -1))
                 ),
                 1
             )
