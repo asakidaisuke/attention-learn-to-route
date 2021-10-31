@@ -162,6 +162,17 @@ def make_instance(args):
         'depot': torch.tensor(depot, dtype=torch.float) / grid_size
     }
 
+def create_time_window(size, window_scale = 15):
+    tensor = torch.randint(15, (size, 2))
+    for t in tensor:
+        if t[0] > t[1]:
+            temp = t[1].clone().detach()
+            t[1] = t[0]
+            t[0] = temp
+        elif t[0] == t[1]:
+            t[1] = t[1] + int(window_scale * 0.4)
+    tensor = torch.cat((torch.zeros((1, 2)), tensor))
+    return tensor
 
 class VRPDataset(Dataset):
     
@@ -191,7 +202,8 @@ class VRPDataset(Dataset):
                     'loc': torch.FloatTensor(size, 2).uniform_(0, 1),
                     # Uniform 1 - 9, scaled by capacities
                     'demand': (torch.FloatTensor(size).uniform_(0, 9).int() + 1).float() / CAPACITIES[size],
-                    'depot': torch.FloatTensor(2).uniform_(0, 1)
+                    'depot': torch.FloatTensor(2).uniform_(0, 1),
+                    'time_window': create_time_window(size=size)
                 }
                 for i in range(num_samples)
             ]
