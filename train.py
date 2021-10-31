@@ -72,10 +72,10 @@ def train_epoch(model, optimizer, baseline, lr_scheduler, epoch, val_dataset, pr
     if not opts.no_tensorboard:
         tb_logger.log_value('learnrate_pg0', optimizer.param_groups[0]['lr'], step)
 
-    # Generate new training data for each epoch
+    # Generate new training data for each epoch. epoch size is so big that is takes some time.
     training_dataset = baseline.wrap_dataset(problem.make_dataset(
         size=opts.graph_size, num_samples=opts.epoch_size, distribution=opts.data_distribution))
-    training_dataloader = DataLoader(training_dataset, batch_size=opts.batch_size, num_workers=1)
+    training_dataloader = DataLoader(training_dataset, batch_size=opts.batch_size, num_workers=0)
 
     # Put model in train mode!
     model.train()
