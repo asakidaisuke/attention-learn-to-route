@@ -171,13 +171,6 @@ class StateCVRP(NamedTuple):
             time_window_mask = time_window_mask[:, None, :]
             mask_loc = visited_loc.to(exceeds_cap.dtype) | exceeds_cap | time_window_mask
             reset_time_mask = ((mask_loc == False).sum(axis=2).reshape(-1,)==0).type(torch.bool)
-            # current_time = self.current_time
-            # current_time[reset_time_mask] = 0
-            # start_point = self.coords[:, self.prev_a][:, 0]
-            # time_window_mask = self.time_window[:, :, 1] - (
-            #         torch.sqrt(torch.pow(self.coords - start_point, 2).sum(dim=2)) + current_time) < 0
-            # time_window_mask = time_window_mask[:, 1:]  # depot is excluded
-            # time_window_mask = time_window_mask[:, None, :]
 
 
         # Nodes that cannot be visited are already visited or too much demand to be served now
