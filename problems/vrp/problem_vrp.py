@@ -187,7 +187,9 @@ class VRPDataset(Dataset):
             with open(filename, 'rb') as f:
                 data = pickle.load(f)
             self.data = [make_instance(args) for args in data[offset:offset+num_samples]]
-
+            # give the time window information
+            for data in self.data:
+                data['time_window'] = create_time_window(size=len(data['loc']))
         else:
 
             # From VRP with RL paper https://arxiv.org/abs/1802.04240
