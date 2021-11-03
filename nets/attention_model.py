@@ -78,7 +78,9 @@ class AttentionModel(nn.Module):
         # Problem specific context parameters (placeholder and step context dimension)
         if self.is_vrp or self.is_orienteering or self.is_pctsp:
             # Embedding of last node + remaining_capacity / remaining length / remaining prize to collect
-            step_context_dim = embedding_dim + 1
+            # CHANGE add current time dimesion
+            # step_context_dim = embedding_dim + 1
+            step_context_dim = embedding_dim + 2
 
             if self.is_pctsp:
                 node_dim = 4  # x, y, expected_prize, penalty
@@ -404,7 +406,9 @@ class AttentionModel(nn.Module):
                                 .view(batch_size, num_steps, 1)
                                 .expand(batch_size, num_steps, embeddings.size(-1))
                         ).view(batch_size, num_steps, embeddings.size(-1)),
-                        self.problem.VEHICLE_CAPACITY - state.used_capacity[:, :, None]
+                        self.problem.VEHICLE_CAPACITY - state.used_capacity[:, :, None],
+                        # CHANGE add current time
+                        state.current_time[:, :, None]
                     ),
                     -1
                 )
