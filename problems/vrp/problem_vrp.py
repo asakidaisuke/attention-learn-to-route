@@ -15,7 +15,7 @@ class CVRP(object):
     VEHICLE_CAPACITY = 1.0  # (w.l.o.g. vehicle capacity is 1, demands should be scaled)
 
     @staticmethod
-    def get_costs(dataset, pi):
+    def get_costs(dataset, pi, state):
         batch_size, graph_size = dataset['demand'].size()
         # Check that tours are valid, i.e. contain 0 to n -1
         sorted_pi = pi.data.sort(1)[0]
@@ -48,11 +48,13 @@ class CVRP(object):
         d = loc_with_depot.gather(1, pi[..., None].expand(*pi.size(), loc_with_depot.size(-1)))
 
         # Length is distance (L2-norm of difference) of each next location to its prev and of first and last to depot
-        return (
-            (d[:, 1:] - d[:, :-1]).norm(p=2, dim=2).sum(1)
-            + (d[:, 0] - dataset['depot']).norm(p=2, dim=1)  # Depot to first
-            + (d[:, -1] - dataset['depot']).norm(p=2, dim=1)  # Last to depot, will be 0 if depot is last
-        ), None
+        # return (
+        #     (d[:, 1:] - d[:, :-1]).norm(p=2, dim=2).sum(1)
+        #     + (d[:, 0] - dataset['depot']).norm(p=2, dim=1)  # Depot to first
+        #     + (d[:, -1] - dataset['depot']).norm(p=2, dim=1)  # Last to depot, will be 0 if depot is last
+        # ), None
+        # CHANGE change cost
+        return state.cost, None
 
     @staticmethod
     def make_dataset(*args, **kwargs):
