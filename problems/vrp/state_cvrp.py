@@ -80,7 +80,7 @@ class StateCVRP(NamedTuple):
             i=torch.zeros(1, dtype=torch.int64, device=loc.device),  # Vector with length num_steps
             time_window=time_window,
             current_time=torch.zeros(batch_size, 1, device=loc.device),
-            current_time_list = [], cost = torch.zeros(batch_size)
+            current_time_list = [], cost = torch.zeros(batch_size, device=loc.device)
         )
 
     def get_final_cost(self):
