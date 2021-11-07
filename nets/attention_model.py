@@ -139,7 +139,8 @@ class AttentionModel(nn.Module):
 
         _log_p, pi = self._inner(input, embeddings)
 
-        cost, mask = self.problem.get_costs(input, pi)
+        # CHNAGE pass state
+        cost, mask = self.problem.get_costs(input, pi, self.state)  # pass self state
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, mask)
@@ -397,6 +398,7 @@ class AttentionModel(nn.Module):
                     -1
                 )
             else:
+                # print(state.current_time[1])
                 return torch.cat(
                     (
                         torch.gather(
