@@ -40,13 +40,8 @@ def get_options(args=None):
     parser.add_argument('--no_cuda', action='store_true', help='Disable CUDA')
     parser.add_argument('--exp_beta', type=float, default=0.8,
                         help='Exponential moving average baseline decay (default 0.8)')
-    parser.add_argument('--baseline', default=None,
-                        help="Baseline to use: 'rollout', 'critic' or 'exponential'. Defaults to no baseline.")
     parser.add_argument('--bl_alpha', type=float, default=0.05,
                         help='Significance in the t-test for updating rollout baseline')
-    parser.add_argument('--bl_warmup_epochs', type=int, default=None,
-                        help='Number of epochs to warmup the baseline, default None means 1 for rollout (exponential '
-                             'used for warmup phase), 0 otherwise. Can only be used with rollout baseline.')
     parser.add_argument('--eval_batch_size', type=int, default=1024,
                         help="Batch size to use during (baseline) evaluation")
     parser.add_argument('--checkpoint_encoder', action='store_true',
@@ -66,9 +61,6 @@ def get_options(args=None):
                         help='Start at epoch # (relevant for learning rate decay)')
     parser.add_argument('--checkpoint_epochs', type=int, default=1,
                         help='Save checkpoint every n epochs (default 1), 0 to save no checkpoints')
-    parser.add_argument('--load_path', help='Path to load model parameters and optimizer state from')
-    parser.add_argument('--resume', help='Resume from previous checkpoint file')
-    parser.add_argument('--no_tensorboard', action='store_true', help='Disable logging TensorBoard files')
     parser.add_argument('--no_progress_bar', action='store_true', help='Disable progress bar')
 
     opts = parser.parse_args(args)
@@ -80,8 +72,6 @@ def get_options(args=None):
         "{}_{}".format(opts.problem, opts.graph_size),
         opts.run_name
     )
-    if opts.bl_warmup_epochs is None:
-        opts.bl_warmup_epochs = 1 if opts.baseline == 'rollout' else 0
-    assert (opts.bl_warmup_epochs == 0) or (opts.baseline == 'rollout')
+
     assert opts.epoch_size % opts.batch_size == 0, "Epoch size must be integer multiple of batch size!"
     return opts

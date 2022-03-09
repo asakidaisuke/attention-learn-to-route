@@ -205,149 +205,103 @@ class Decoder(nn.Module):
         return idxs
 
 
-class CriticNetworkLSTM(nn.Module):
-    """Useful as a baseline in REINFORCE updates"""
-    def __init__(self,
-            embedding_dim,
-            hidden_dim,
-            n_process_block_iters,
-            tanh_exploration,
-            use_tanh):
-        super(CriticNetworkLSTM, self).__init__()
-        
-        self.hidden_dim = hidden_dim
-        self.n_process_block_iters = n_process_block_iters
+# class PointerNetwork(nn.Module):
 
-        self.encoder = Encoder(embedding_dim, hidden_dim)
-        
-        self.process_block = Attention(hidden_dim, use_tanh=use_tanh, C=tanh_exploration)
-        self.sm = nn.Softmax(dim=1)
-        self.decoder = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1)
-        )
+#     def __init__(self,
+#                  embedding_dim,
+#                  hidden_dim,
+#                  problem,
+#                  n_encode_layers=None,
+#                  tanh_clipping=10.,
+#                  mask_inner=True,
+#                  mask_logits=True,
+#                  normalization=None,
+#                  **kwargs):
+#         super(PointerNetwork, self).__init__()
 
-    def forward(self, inputs):
-        """
-        Args:
-            inputs: [embedding_dim x batch_size x sourceL] of embedded inputs
-        """
-        inputs = inputs.transpose(0, 1).contiguous()
+#         self.problem = problem
+#         assert problem.NAME == "tsp", "Pointer Network only supported for TSP"
+#         self.input_dim = 2
 
-        encoder_hx = self.encoder.init_hx.unsqueeze(0).repeat(inputs.size(1), 1).unsqueeze(0)
-        encoder_cx = self.encoder.init_cx.unsqueeze(0).repeat(inputs.size(1), 1).unsqueeze(0)
-        
-        # encoder forward pass
-        enc_outputs, (enc_h_t, enc_c_t) = self.encoder(inputs, (encoder_hx, encoder_cx))
-        
-        # grab the hidden state and process it via the process block 
-        process_block_state = enc_h_t[-1]
-        for i in range(self.n_process_block_iters):
-            ref, logits = self.process_block(process_block_state, enc_outputs)
-            process_block_state = torch.bmm(ref, self.sm(logits).unsqueeze(2)).squeeze(2)
-        # produce the final scalar output
-        out = self.decoder(process_block_state)
-        return out
+#         self.encoder = Encoder(
+#             embedding_dim,
+#             hidden_dim)
 
+#         self.decoder = Decoder(
+#             embedding_dim,
+#             hidden_dim,
+#             tanh_exploration=tanh_clipping,
+#             use_tanh=tanh_clipping > 0,
+#             n_glimpses=1,
+#             mask_glimpses=mask_inner,
+#             mask_logits=mask_logits
+#         )
 
-class PointerNetwork(nn.Module):
+#         # Trainable initial hidden states
+#         std = 1. / math.sqrt(embedding_dim)
+#         self.decoder_in_0 = nn.Parameter(torch.FloatTensor(embedding_dim))
+#         self.decoder_in_0.data.uniform_(-std, std)
 
-    def __init__(self,
-                 embedding_dim,
-                 hidden_dim,
-                 problem,
-                 n_encode_layers=None,
-                 tanh_clipping=10.,
-                 mask_inner=True,
-                 mask_logits=True,
-                 normalization=None,
-                 **kwargs):
-        super(PointerNetwork, self).__init__()
+#         self.embedding = nn.Parameter(torch.FloatTensor(self.input_dim, embedding_dim))
+#         self.embedding.data.uniform_(-std, std)
 
-        self.problem = problem
-        assert problem.NAME == "tsp", "Pointer Network only supported for TSP"
-        self.input_dim = 2
+#     def set_decode_type(self, decode_type):
+#         self.decoder.decode_type = decode_type
 
-        self.encoder = Encoder(
-            embedding_dim,
-            hidden_dim)
+#     def forward(self, inputs, eval_tours=None, return_pi=False):
+#         batch_size, graph_size, input_dim = inputs.size()
 
-        self.decoder = Decoder(
-            embedding_dim,
-            hidden_dim,
-            tanh_exploration=tanh_clipping,
-            use_tanh=tanh_clipping > 0,
-            n_glimpses=1,
-            mask_glimpses=mask_inner,
-            mask_logits=mask_logits
-        )
+#         embedded_inputs = torch.mm(
+#             inputs.transpose(0, 1).contiguous().view(-1, input_dim),
+#             self.embedding
+#         ).view(graph_size, batch_size, -1)
 
-        # Trainable initial hidden states
-        std = 1. / math.sqrt(embedding_dim)
-        self.decoder_in_0 = nn.Parameter(torch.FloatTensor(embedding_dim))
-        self.decoder_in_0.data.uniform_(-std, std)
+#         # query the actor net for the input indices 
+#         # making up the output, and the pointer attn 
+#         _log_p, pi = self._inner(embedded_inputs, eval_tours)
 
-        self.embedding = nn.Parameter(torch.FloatTensor(self.input_dim, embedding_dim))
-        self.embedding.data.uniform_(-std, std)
+#         cost, mask = self.problem.get_costs(inputs, pi)
+#         # Log likelyhood is calculated within the model since returning it per action does not work well with
+#         # DataParallel since sequences can be of different lengths
+#         ll = self._calc_log_likelihood(_log_p, pi, mask)
+#         if return_pi:
+#             return cost, ll, pi
 
-    def set_decode_type(self, decode_type):
-        self.decoder.decode_type = decode_type
+#         return cost, ll
 
-    def forward(self, inputs, eval_tours=None, return_pi=False):
-        batch_size, graph_size, input_dim = inputs.size()
+#     def _calc_log_likelihood(self, _log_p, a, mask):
 
-        embedded_inputs = torch.mm(
-            inputs.transpose(0, 1).contiguous().view(-1, input_dim),
-            self.embedding
-        ).view(graph_size, batch_size, -1)
+#         # Get log_p corresponding to selected actions
+#         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
 
-        # query the actor net for the input indices 
-        # making up the output, and the pointer attn 
-        _log_p, pi = self._inner(embedded_inputs, eval_tours)
+#         # Optional: mask out actions irrelevant to objective so they do not get reinforced
+#         if mask is not None:
+#             log_p[mask] = 0
 
-        cost, mask = self.problem.get_costs(inputs, pi)
-        # Log likelyhood is calculated within the model since returning it per action does not work well with
-        # DataParallel since sequences can be of different lengths
-        ll = self._calc_log_likelihood(_log_p, pi, mask)
-        if return_pi:
-            return cost, ll, pi
+#         assert (log_p > -1000).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
-        return cost, ll
+#         # Calculate log_likelihood
+#         return log_p.sum(1)
 
-    def _calc_log_likelihood(self, _log_p, a, mask):
+#     def _inner(self, inputs, eval_tours=None):
 
-        # Get log_p corresponding to selected actions
-        log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
+#         encoder_hx = encoder_cx = Variable(
+#             torch.zeros(1, inputs.size(1), self.encoder.hidden_dim, out=inputs.data.new()),
+#             requires_grad=False
+#         )
 
-        # Optional: mask out actions irrelevant to objective so they do not get reinforced
-        if mask is not None:
-            log_p[mask] = 0
+#         # encoder forward pass
+#         enc_h, (enc_h_t, enc_c_t) = self.encoder(inputs, (encoder_hx, encoder_cx))
 
-        assert (log_p > -1000).data.all(), "Logprobs should not be -inf, check sampling procedure!"
+#         dec_init_state = (enc_h_t[-1], enc_c_t[-1])
 
-        # Calculate log_likelihood
-        return log_p.sum(1)
+#         # repeat decoder_in_0 across batch
+#         decoder_input = self.decoder_in_0.unsqueeze(0).repeat(inputs.size(1), 1)
 
-    def _inner(self, inputs, eval_tours=None):
+#         (pointer_probs, input_idxs), dec_hidden_t = self.decoder(decoder_input,
+#                                                                  inputs,
+#                                                                  dec_init_state,
+#                                                                  enc_h,
+#                                                                  eval_tours)
 
-        encoder_hx = encoder_cx = Variable(
-            torch.zeros(1, inputs.size(1), self.encoder.hidden_dim, out=inputs.data.new()),
-            requires_grad=False
-        )
-
-        # encoder forward pass
-        enc_h, (enc_h_t, enc_c_t) = self.encoder(inputs, (encoder_hx, encoder_cx))
-
-        dec_init_state = (enc_h_t[-1], enc_c_t[-1])
-
-        # repeat decoder_in_0 across batch
-        decoder_input = self.decoder_in_0.unsqueeze(0).repeat(inputs.size(1), 1)
-
-        (pointer_probs, input_idxs), dec_hidden_t = self.decoder(decoder_input,
-                                                                 inputs,
-                                                                 dec_init_state,
-                                                                 enc_h,
-                                                                 eval_tours)
-
-        return pointer_probs, input_idxs
+#         return pointer_probs, input_idxs
