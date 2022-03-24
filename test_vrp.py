@@ -7,7 +7,8 @@ from utils import load_model
 from problems import CVRP
 
 
-model, _ = load_model('pretrained/cvrp_50/')
+# model, _ = load_model('pretrained/cvrp_50/')
+model, _ = load_model('workstation_output/cvrp_50/20211106/epoch-73.pt')
 torch.manual_seed(1234)
 dataset = CVRP.make_dataset(size=50, num_samples=10)
 

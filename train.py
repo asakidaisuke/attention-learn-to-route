@@ -113,10 +113,10 @@ def train_epoch(model, optimizer, baseline, lr_scheduler, epoch, val_dataset, pr
             os.path.join(opts.save_dir, 'epoch-{}.pt'.format(epoch))
         )
 
-    avg_reward = validate(model, val_dataset, opts)
-
-    if not opts.no_tensorboard:
-        tb_logger.log_value('val_avg_reward', avg_reward, step)
+    # avg_reward = validate(model, val_dataset, opts)
+    #
+    # if not opts.no_tensorboard:
+    #     tb_logger.log_value('val_avg_reward', avg_reward, step)
 
     baseline.epoch_callback(model, epoch)
 

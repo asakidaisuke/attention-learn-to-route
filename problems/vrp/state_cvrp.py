@@ -80,7 +80,7 @@ class StateCVRP(NamedTuple):
             i=torch.zeros(1, dtype=torch.int64, device=loc.device),  # Vector with length num_steps
             time_window=time_window,
             current_time=torch.zeros(batch_size, 1, device=loc.device),
-            current_time_list = [], cost = torch.zeros(batch_size)
+            current_time_list = [], cost = torch.zeros(batch_size, device=loc.device)
         )
 
     def get_final_cost(self):
@@ -108,11 +108,10 @@ class StateCVRP(NamedTuple):
         start_time = self.time_window[:, :, 0].gather(1, prev_a[:, 0].unsqueeze(1))
 
         is_depot = ((prev_a == 0).sum(axis=1).reshape(-1,)!=0).type(torch.bool)
-        lengths = (cur_coord - self.cur_coord).norm(p=2, dim=-1)  # (batch_dim, 1)
-        current_time = self.current_time + lengths
+        lengths = (cur_coord - self.cur_coord).norm(p=2, dim=-1)# (batch_dim, 1)
 
         # use later time for current time
-        current_time = torch.concat((current_time + lengths, start_time), 1).max(1).values[:, None]
+        current_time = torch.concat((self.current_time + lengths, start_time), 1).max(1).values[:, None]
 
         # add cost
         cost = self.cost
@@ -172,7 +171,7 @@ class StateCVRP(NamedTuple):
         if True:
             start_point = self.coords[:, self.prev_a][:, 0]
             time_window_mask = self.time_window[:,:,1] - (
-                    torch.sqrt(torch.pow(self.coords - start_point, 2).sum(dim=2)) + self.current_time) < 0
+                    self.coords[torch.arange(self.coords.size(0)), self.prev_a.flatten()] + self.current_time) < 0
             time_window_mask = time_window_mask[:, 1:]  # depot is excluded
             time_window_mask = time_window_mask[:, None, :]
             mask_loc = visited_loc.to(exceeds_cap.dtype) | exceeds_cap | time_window_mask
