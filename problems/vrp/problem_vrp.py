@@ -218,6 +218,7 @@ class VRPDataset(Dataset):
                 distance = torch.cdist(cated_array, cated_array, p=2)
                 self.data[i]['loc'] = distance[1:]
                 self.data[i]['depot'] = distance[0, :]
+                self.data[i]['matrix'] = distance
 
         self.size = len(self.data)
 

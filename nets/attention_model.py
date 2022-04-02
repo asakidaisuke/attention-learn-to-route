@@ -9,6 +9,7 @@ from nets.graph_encoder import GraphAttentionEncoder
 from torch.nn import DataParallel
 from utils.beam_search import CachedLookup
 from utils.functions import sample_many
+# from nets.node2vec import Node2VecWrapper
 
 
 def set_decode_type(model, decode_type):
@@ -189,18 +190,24 @@ class AttentionModel(nn.Module):
         return log_p.sum(1)
 
     def _init_embed(self, input):
-        i = 1
+        batch_size = input['matrix'].shape[0]
+        node_feature_list, depo_feature_list = [], []
+        # for i in range(batch_size):
+        #     depo_feature_matirix, node_feature_matirix = Node2VecWrapper.calc(input['matrix'][i])
+        #     depo_feature_list.append(depo_feature_matirix)
+        #     node_feature_list.append(node_feature_matirix)
+
         # [1024 batch size, 21 points + depot, 128 out feature ]
         return torch.cat(
             (
                 # [1024 batch size, 2 two dimension coordinates ]
                 #           -> [1024 batch size, 1 depot, 128 out feature ]
-                self.init_embed_depot3(self.init_embed_depot2(self.init_embed_depot(input['depot'])[:, None, :])),
+                self.init_embed_depot(input['depot'])[:, None, :],
                 # loc: [1024 batch size, 20 points, 2 two dimension coordinates ]
                 # demand: [1024 batch size, 20 points, 1 one dimension demand]
                 # time_window: [1024 batch size, 20 points, 2 two dimension time window]
                 #      -> output: [1024 batch size, 20 points, 128 out feature ]
-                self.init_embed3(self.init_embed2(self.init_embed(
+                self.init_embed(
                     torch.cat(
                         (
                             input['loc'],
@@ -208,7 +215,7 @@ class AttentionModel(nn.Module):
                             input['time_window'][:, 1:, :]),
                         -1
                     )
-                )))
+                )
             ),
             1
         )
