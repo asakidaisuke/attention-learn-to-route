@@ -79,9 +79,6 @@ class AttentionModel(nn.Module):
 
         # Special embedding projection for depot node
         self.init_embed_depot = nn.Linear(2, embedding_dim)  # in coordinates out 128 feature
-#         self.init_embed_depot = nn.Linear(21, embedding_dim)
-#         self.init_embed_depot2 = nn.Linear(embedding_dim, embedding_dim)
-#         self.init_embed_depot3 = nn.Linear(embedding_dim, embedding_dim)
 
         if self.is_vrp and self.allow_partial:  # Need to include the demand if split delivery allowed
             self.project_node_step = nn.Linear(1, 3 * embedding_dim, bias=False)
