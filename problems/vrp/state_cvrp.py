@@ -36,21 +36,6 @@ class StateCVRP(NamedTuple):
     def dist(self):
         return (self.coords[:, :, None, :] - self.coords[:, None, :, :]).norm(p=2, dim=-1)
 
-#     def __getitem__(self, key):
-#         assert torch.is_tensor(key) or isinstance(key, slice)  # If tensor, idx all tensors by this tensor:
-#         return self._replace(
-#             ids=self.ids[key],
-#             prev_a=self.prev_a[key],
-#             used_capacity=self.used_capacity[key],
-#             visited_=self.visited_[key],
-#             lengths=self.lengths[key],
-#             cur_coord=self.cur_coord[key],
-#         )
-
-    # Warning: cannot override len of NamedTuple, len should be number of fields, not batch size
-    # def __len__(self):
-    #     return len(self.used_capacity)
-
     @staticmethod
     def initialize(input, visited_dtype=torch.uint8):
 
@@ -100,10 +85,6 @@ class StateCVRP(NamedTuple):
 
         # Add the length
         cur_coord = self.coords[self.ids, selected]
-        # cur_coord = self.coords.gather(
-        #     1,
-        #     selected[:, None].expand(selected.size(0), 1, self.coords.size(-1))
-        # )[:, 0, :]
         # get timewidow start time
         start_time = self.time_window[:, :, 0].gather(1, prev_a[:, 0].unsqueeze(1))
 
@@ -117,6 +98,10 @@ class StateCVRP(NamedTuple):
         cost = self.cost
         cost[reset_time_mask | is_depot] += current_time.squeeze()[reset_time_mask | is_depot]
 
+        print("---------------------")
+        print(current_time)
+        current_time += 0.1
+        print(current_time)
         current_time[reset_time_mask | is_depot] = 0
         current_time_list = self.current_time_list
         current_time_list.append(current_time)
@@ -171,7 +156,7 @@ class StateCVRP(NamedTuple):
         if True:
             start_point = self.coords[:, self.prev_a][:, 0]
             time_window_mask = self.time_window[:,:,1] - (
-                    self.coords[torch.arange(self.coords.size(0)), self.prev_a.flatten()] + self.current_time) < 0
+                    torch.sqrt(torch.pow(self.coords - start_point, 2).sum(dim=2)) + self.current_time) < 0
             time_window_mask = time_window_mask[:, 1:]  # depot is excluded
             time_window_mask = time_window_mask[:, None, :]
             mask_loc = visited_loc.to(exceeds_cap.dtype) | exceeds_cap | time_window_mask

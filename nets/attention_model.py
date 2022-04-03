@@ -78,14 +78,14 @@ class AttentionModel(nn.Module):
             node_dim = 24 # CHANGE dim
 
         # Special embedding projection for depot node
-        # self.init_embed_depot = nn.Linear(2, embedding_dim)  # in coordinates out 128 feature
-        self.init_embed_depot = nn.Linear(21, embedding_dim)
-        self.init_embed_depot2 = nn.Linear(embedding_dim, embedding_dim)
-        self.init_embed_depot3 = nn.Linear(embedding_dim, embedding_dim)
+        self.init_embed_depot = nn.Linear(2, embedding_dim)  # in coordinates out 128 feature
+#         self.init_embed_depot = nn.Linear(21, embedding_dim)
+#         self.init_embed_depot2 = nn.Linear(embedding_dim, embedding_dim)
+#         self.init_embed_depot3 = nn.Linear(embedding_dim, embedding_dim)
 
         if self.is_vrp and self.allow_partial:  # Need to include the demand if split delivery allowed
             self.project_node_step = nn.Linear(1, 3 * embedding_dim, bias=False)
-        self.init_embed = nn.Linear(node_dim, embedding_dim)
+        self.init_embed = nn.Linear(5, embedding_dim)
         self.init_embed2 = nn.Linear(embedding_dim, embedding_dim)
         self.init_embed3 = nn.Linear(embedding_dim, embedding_dim)# in coordinates out 128 feature
 
@@ -195,12 +195,12 @@ class AttentionModel(nn.Module):
             (
                 # [1024 batch size, 2 two dimension coordinates ]
                 #           -> [1024 batch size, 1 depot, 128 out feature ]
-                self.init_embed_depot3(self.init_embed_depot2(self.init_embed_depot(input['depot'])[:, None, :])),
+                self.init_embed_depot(input['depot'])[:, None, :],
                 # loc: [1024 batch size, 20 points, 2 two dimension coordinates ]
                 # demand: [1024 batch size, 20 points, 1 one dimension demand]
                 # time_window: [1024 batch size, 20 points, 2 two dimension time window]
                 #      -> output: [1024 batch size, 20 points, 128 out feature ]
-                self.init_embed3(self.init_embed2(self.init_embed(
+                self.init_embed(
                     torch.cat(
                         (
                             input['loc'],
@@ -208,7 +208,7 @@ class AttentionModel(nn.Module):
                             input['time_window'][:, 1:, :]),
                         -1
                     )
-                )))
+                )
             ),
             1
         )
