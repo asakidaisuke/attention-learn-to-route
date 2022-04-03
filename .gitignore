@@ -12,3 +12,4 @@ __pycache__/
 nohup.out
 problems/vrp/.ipynb_checkpoints/
 utils/__init__.pyc
+solomon/*
