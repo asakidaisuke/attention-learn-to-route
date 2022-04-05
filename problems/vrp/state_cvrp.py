@@ -36,21 +36,6 @@ class StateCVRP(NamedTuple):
     def dist(self):
         return (self.coords[:, :, None, :] - self.coords[:, None, :, :]).norm(p=2, dim=-1)
 
-#     def __getitem__(self, key):
-#         assert torch.is_tensor(key) or isinstance(key, slice)  # If tensor, idx all tensors by this tensor:
-#         return self._replace(
-#             ids=self.ids[key],
-#             prev_a=self.prev_a[key],
-#             used_capacity=self.used_capacity[key],
-#             visited_=self.visited_[key],
-#             lengths=self.lengths[key],
-#             cur_coord=self.cur_coord[key],
-#         )
-
-    # Warning: cannot override len of NamedTuple, len should be number of fields, not batch size
-    # def __len__(self):
-    #     return len(self.used_capacity)
-
     @staticmethod
     def initialize(input, visited_dtype=torch.uint8):
 
@@ -80,7 +65,7 @@ class StateCVRP(NamedTuple):
             i=torch.zeros(1, dtype=torch.int64, device=loc.device),  # Vector with length num_steps
             time_window=time_window,
             current_time=torch.zeros(batch_size, 1, device=loc.device),
-            current_time_list = [], cost = torch.zeros(batch_size)
+            current_time_list = [], cost = torch.zeros(batch_size, device=loc.device)
         )
 
     def get_final_cost(self):
@@ -100,43 +85,40 @@ class StateCVRP(NamedTuple):
 
         # Add the length
         cur_coord = self.coords[self.ids, selected]
-        # cur_coord = self.coords.gather(
-        #     1,
-        #     selected[:, None].expand(selected.size(0), 1, self.coords.size(-1))
-        # )[:, 0, :]
         # get timewidow start time
-        start_time = self.time_window[:, :, 0].gather(1, prev_a[:, 0].unsqueeze(1))
+        start_time = self.time_window[:, :, 0].gather(1, selected[:, 0].unsqueeze(1))
 
-        is_depot = ((prev_a == 0).sum(axis=1).reshape(-1,)!=0).type(torch.bool)
-        lengths = (cur_coord - self.cur_coord).norm(p=2, dim=-1)  # (batch_dim, 1)
-        current_time = self.current_time + lengths
+        is_depot = ((selected == 0).sum(axis=1).reshape(-1,)!=0).type(torch.bool)
+        lengths = (cur_coord - self.cur_coord).norm(p=2, dim=-1)# (batch_dim, 1)
 
         # use later time for current time
-        current_time = torch.concat((current_time + lengths, start_time), 1).max(1).values[:, None]
+        current_time = torch.concat((self.current_time + lengths, start_time), 1).max(1).values[:, None]
 
         # add cost
         cost = self.cost
         cost[reset_time_mask | is_depot] += current_time.squeeze()[reset_time_mask | is_depot]
 
+        current_time += 0.1
         current_time[reset_time_mask | is_depot] = 0
         current_time_list = self.current_time_list
         current_time_list.append(current_time)
         # Not selected_demand is demand of first node (by clamp) so incorrect for nodes that visit depot!
         #selected_demand = self.demand.gather(-1, torch.clamp(prev_a - 1, 0, n_loc - 1))
-        selected_demand = self.demand[self.ids, torch.clamp(prev_a - 1, 0, n_loc - 1)]
+        selected_demand = self.demand[self.ids, torch.clamp(selected - 1, 0, n_loc - 1)]
 
         # Increase capacity if depot is not visited, otherwise set to 0
         #used_capacity = torch.where(selected == 0, 0, self.used_capacity + selected_demand)
-        used_capacity = (self.used_capacity + selected_demand) * (prev_a != 0).float()
+        used_capacity = (self.used_capacity + selected_demand) * (selected != 0).float()
 
         if self.visited_.dtype == torch.uint8:
             # Note: here we do not subtract one as we have to scatter so the first column allows scattering depot
             # Add one dimension since we write a single value
-            visited_ = self.visited_.scatter(-1, prev_a[:, :, None], 1)
+            visited_ = self.visited_.scatter(-1, selected[:, :, None], 1)
         else:
             # This works, will not set anything if prev_a -1 == -1 (depot)
-            visited_ = mask_long_scatter(self.visited_, prev_a - 1)
+            visited_ = mask_long_scatter(self.visited_, selected - 1)
 
+        prev_a = selected
         return self._replace(
             prev_a=prev_a, used_capacity=used_capacity, visited_=visited_,
             lengths=lengths, cur_coord=cur_coord, i=self.i + 1, current_time=current_time,
@@ -170,12 +152,13 @@ class StateCVRP(NamedTuple):
 
         # add time window mask
         if True:
-            start_point = self.coords[:, self.prev_a][:, 0]
+            # start_point = self.coords[:, self.prev_a][:, 0]
+            start_point = torch.gather(self.coords, 1, self.prev_a[:, None].expand(-1, -1, 2))
             time_window_mask = self.time_window[:,:,1] - (
                     torch.sqrt(torch.pow(self.coords - start_point, 2).sum(dim=2)) + self.current_time) < 0
             time_window_mask = time_window_mask[:, 1:]  # depot is excluded
             time_window_mask = time_window_mask[:, None, :]
-            mask_loc = visited_loc.to(exceeds_cap.dtype) | exceeds_cap | time_window_mask
+            mask_loc = visited_loc.to(exceeds_cap.dtype) & exceeds_cap | time_window_mask
             reset_time_mask = ((mask_loc == False).sum(axis=2).reshape(-1,)==0).type(torch.bool)
 
 
@@ -184,7 +167,9 @@ class StateCVRP(NamedTuple):
 
         # Cannot visit the depot if just visited and still unserved nodes
         # change or from and TODO
-        mask_depot = (self.prev_a == 0) & ((mask_loc == 0).int().sum(-1) > 0)
+        mask_depot = (self.prev_a == 0) | ((mask_loc == 0).int().sum(-1) > 0)
+        mask_depot[(((self.prev_a == 0) & ((mask_loc == 0).int().sum(-1) == 0)).view(-1))] = False
+
         return torch.cat((mask_depot[:, :, None], mask_loc), -1), reset_time_mask
 
     def construct_solutions(self, actions):
