@@ -2,6 +2,7 @@ from torch.utils.data import Dataset
 import torch
 import os
 import pickle
+import random
 
 from problems.vrp.state_cvrp import StateCVRP
 from utils.beam_search import beam_search
@@ -165,17 +166,28 @@ def make_instance(args):
 
 def create_time_window(size, window_scale = 15):
     tensor = torch.randint(15, (size, 2))
+#     for t in tensor:
+#         if t[0] > t[1]:
+#             temp = t[1].clone().detach()
+#             t[1] = t[0]
+#             t[0] = temp
+#         elif t[0] == t[1]:
+#             t[1] = t[1] + int(window_scale * 0.2)
+#         if t[1] - t[0] > 3:
+#             t[1] -= 3
+#         t[1] += 1  # prevent unsined jobs
     for t in tensor:
-        if t[0] > t[1]:
-            temp = t[1].clone().detach()
-            t[1] = t[0]
-            t[0] = temp
-        elif t[0] == t[1]:
-            t[1] = t[1] + int(window_scale * 0.2)
-        if t[1] - t[0] > 3:
-            t[1] -= 3
-        t[1] += 1  # prevent unsined jobs
+        r = random.uniform(0,1.0)
+        if r < 0.5:
+            t[1] = t[0] + 2
+        elif r >= 0.5 and r < 0.7:
+            t[0] = 0
+            if t[1] == 0 or t[1] == 1:
+                t[1] = 2
+        else:
+            t[1] = t[0] + 3
     tensor = torch.cat((torch.zeros((1, 2)), tensor))
+#     print(tensor)
     return tensor
 
 class VRPDataset(Dataset):
