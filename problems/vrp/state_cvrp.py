@@ -24,6 +24,7 @@ class StateCVRP(NamedTuple):
     VEHICLE_CAPACITY = 1.0  # Hardcoded
     current_time_list: list
     cost: torch.Tensor
+    service_time: torch.Tensor
 
     @property
     def visited(self):
@@ -43,6 +44,7 @@ class StateCVRP(NamedTuple):
         loc = input['loc']
         demand = input['demand']
         time_window = input['time_window']
+        service_time = input['service_time']
 
         batch_size, n_loc, _ = loc.size()
         return StateCVRP(
@@ -65,7 +67,8 @@ class StateCVRP(NamedTuple):
             i=torch.zeros(1, dtype=torch.int64, device=loc.device),  # Vector with length num_steps
             time_window=time_window,
             current_time=torch.zeros(batch_size, 1, device=loc.device),
-            current_time_list = [], cost = torch.zeros(batch_size, device=loc.device)
+            current_time_list = [], cost = torch.zeros(batch_size, device=loc.device),
+            service_time=service_time
         )
 
     def get_final_cost(self):
@@ -98,7 +101,7 @@ class StateCVRP(NamedTuple):
         cost = self.cost
         cost[reset_time_mask | is_depot] += current_time.squeeze()[reset_time_mask | is_depot]
 
-        current_time += 0.1
+        current_time += self.service_time
         current_time[reset_time_mask | is_depot] = 0
         current_time_list = self.current_time_list
         current_time_list.append(current_time)
@@ -158,7 +161,7 @@ class StateCVRP(NamedTuple):
                     torch.sqrt(torch.pow(self.coords - start_point, 2).sum(dim=2)) + self.current_time) < 0
             time_window_mask = time_window_mask[:, 1:]  # depot is excluded
             time_window_mask = time_window_mask[:, None, :]
-            mask_loc = visited_loc.to(exceeds_cap.dtype) & exceeds_cap | time_window_mask
+            mask_loc = visited_loc.to(exceeds_cap.dtype) | exceeds_cap | time_window_mask
             reset_time_mask = ((mask_loc == False).sum(axis=2).reshape(-1,)==0).type(torch.bool)
 
 

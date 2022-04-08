@@ -488,7 +488,7 @@ class AttentionModel(nn.Module):
 
         # From the logits compute the probabilities by clipping, masking and softmax
         if self.tanh_clipping > 0:
-            logits = torch.tanh(logits) * self.tanh_clipping
+            logits = torch.tanh(logits/10) * self.tanh_clipping
         if self.mask_logits:
             logits[mask] = -math.inf
 

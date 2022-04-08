@@ -4,7 +4,6 @@ import os
 import pickle
 
 from problems.vrp.state_cvrp import StateCVRP
-from problems.vrp.state_sdvrp import StateSDVRP
 from utils.beam_search import beam_search
 
 
@@ -84,73 +83,73 @@ class CVRP(object):
         return beam_search(state, beam_size, propose_expansions)
 
 
-class SDVRP(object):
+# class SDVRP(object):
 
-    NAME = 'sdvrp'  # Split Delivery Vehicle Routing Problem
+#     NAME = 'sdvrp'  # Split Delivery Vehicle Routing Problem
 
-    VEHICLE_CAPACITY = 1.0  # (w.l.o.g. vehicle capacity is 1, demands should be scaled)
+#     VEHICLE_CAPACITY = 1.0  # (w.l.o.g. vehicle capacity is 1, demands should be scaled)
 
-    @staticmethod
-    def get_costs(dataset, pi):
-        batch_size, graph_size = dataset['demand'].size()
+#     @staticmethod
+#     def get_costs(dataset, pi):
+#         batch_size, graph_size = dataset['demand'].size()
 
-        # Each node can be visited multiple times, but we always deliver as much demand as possible
-        # We check that at the end all demand has been satisfied
-        demands = torch.cat(
-            (
-                torch.full_like(dataset['demand'][:, :1], -SDVRP.VEHICLE_CAPACITY),
-                dataset['demand']
-            ),
-            1
-        )
-        rng = torch.arange(batch_size, out=demands.data.new().long())
-        used_cap = torch.zeros_like(dataset['demand'][:, 0])
-        a_prev = None
-        for a in pi.transpose(0, 1):
-            assert a_prev is None or (demands[((a_prev == 0) & (a == 0)), :] == 0).all(), \
-                "Cannot visit depot twice if any nonzero demand"
-            d = torch.min(demands[rng, a], SDVRP.VEHICLE_CAPACITY - used_cap)
-            demands[rng, a] -= d
-            used_cap += d
-            used_cap[a == 0] = 0
-            a_prev = a
-        assert (demands == 0).all(), "All demand must be satisfied"
+#         # Each node can be visited multiple times, but we always deliver as much demand as possible
+#         # We check that at the end all demand has been satisfied
+#         demands = torch.cat(
+#             (
+#                 torch.full_like(dataset['demand'][:, :1], -SDVRP.VEHICLE_CAPACITY),
+#                 dataset['demand']
+#             ),
+#             1
+#         )
+#         rng = torch.arange(batch_size, out=demands.data.new().long())
+#         used_cap = torch.zeros_like(dataset['demand'][:, 0])
+#         a_prev = None
+#         for a in pi.transpose(0, 1):
+#             assert a_prev is None or (demands[((a_prev == 0) & (a == 0)), :] == 0).all(), \
+#                 "Cannot visit depot twice if any nonzero demand"
+#             d = torch.min(demands[rng, a], SDVRP.VEHICLE_CAPACITY - used_cap)
+#             demands[rng, a] -= d
+#             used_cap += d
+#             used_cap[a == 0] = 0
+#             a_prev = a
+#         assert (demands == 0).all(), "All demand must be satisfied"
 
-        # Gather dataset in order of tour
-        loc_with_depot = torch.cat((dataset['depot'][:, None, :], dataset['loc']), 1)
-        d = loc_with_depot.gather(1, pi[..., None].expand(*pi.size(), loc_with_depot.size(-1)))
+#         # Gather dataset in order of tour
+#         loc_with_depot = torch.cat((dataset['depot'][:, None, :], dataset['loc']), 1)
+#         d = loc_with_depot.gather(1, pi[..., None].expand(*pi.size(), loc_with_depot.size(-1)))
 
-        # Length is distance (L2-norm of difference) of each next location to its prev and of first and last to depot
-        return (
-            (d[:, 1:] - d[:, :-1]).norm(p=2, dim=2).sum(1)
-            + (d[:, 0] - dataset['depot']).norm(p=2, dim=1)  # Depot to first
-            + (d[:, -1] - dataset['depot']).norm(p=2, dim=1)  # Last to depot, will be 0 if depot is last
-        ), None
+#         # Length is distance (L2-norm of difference) of each next location to its prev and of first and last to depot
+#         return (
+#             (d[:, 1:] - d[:, :-1]).norm(p=2, dim=2).sum(1)
+#             + (d[:, 0] - dataset['depot']).norm(p=2, dim=1)  # Depot to first
+#             + (d[:, -1] - dataset['depot']).norm(p=2, dim=1)  # Last to depot, will be 0 if depot is last
+#         ), None
 
-    @staticmethod
-    def make_dataset(*args, **kwargs):
-        return VRPDataset(*args, **kwargs)
+#     @staticmethod
+#     def make_dataset(*args, **kwargs):
+#         return VRPDataset(*args, **kwargs)
 
-    @staticmethod
-    def make_state(*args, **kwargs):
-        return StateSDVRP.initialize(*args, **kwargs)
+#     @staticmethod
+#     def make_state(*args, **kwargs):
+#         return StateSDVRP.initialize(*args, **kwargs)
 
-    @staticmethod
-    def beam_search(input, beam_size, expand_size=None,
-                    compress_mask=False, model=None, max_calc_batch_size=4096):
-        assert model is not None, "Provide model"
-        assert not compress_mask, "SDVRP does not support compression of the mask"
+#     @staticmethod
+#     def beam_search(input, beam_size, expand_size=None,
+#                     compress_mask=False, model=None, max_calc_batch_size=4096):
+#         assert model is not None, "Provide model"
+#         assert not compress_mask, "SDVRP does not support compression of the mask"
 
-        fixed = model.precompute_fixed(input)
+#         fixed = model.precompute_fixed(input)
 
-        def propose_expansions(beam):
-            return model.propose_expansions(
-                beam, fixed, expand_size, normalize=True, max_calc_batch_size=max_calc_batch_size
-            )
+#         def propose_expansions(beam):
+#             return model.propose_expansions(
+#                 beam, fixed, expand_size, normalize=True, max_calc_batch_size=max_calc_batch_size
+#             )
 
-        state = SDVRP.make_state(input)
+#         state = SDVRP.make_state(input)
 
-        return beam_search(state, beam_size, propose_expansions)
+#         return beam_search(state, beam_size, propose_expansions)
 
 
 def make_instance(args):
@@ -172,7 +171,9 @@ def create_time_window(size, window_scale = 15):
             t[1] = t[0]
             t[0] = temp
         elif t[0] == t[1]:
-            t[1] = t[1] + int(window_scale * 0.4)
+            t[1] = t[1] + int(window_scale * 0.2)
+        if t[1] - t[0] > 3:
+            t[1] -= 3
         t[1] += 1  # prevent unsined jobs
     tensor = torch.cat((torch.zeros((1, 2)), tensor))
     return tensor
@@ -192,6 +193,8 @@ class VRPDataset(Dataset):
             # give the time window information
             for data in self.data:
                 data['time_window'] = create_time_window(size=len(data['loc']))
+            for data in self.data:
+                data['service_time'] = torch.Tensor([0])
         else:
 
             # From VRP with RL paper https://arxiv.org/abs/1802.04240
@@ -199,7 +202,9 @@ class VRPDataset(Dataset):
                 10: 20.,
                 20: 30.,
                 50: 40.,
-                100: 50.
+                100: 50.,
+                200: 60.,
+                300: 60.
             }
 
             self.data = [
@@ -208,10 +213,17 @@ class VRPDataset(Dataset):
                     # Uniform 1 - 9, scaled by capacities
                     'demand': (torch.FloatTensor(size).uniform_(0, 9).int() + 1).float() / CAPACITIES[size],
                     'depot': torch.FloatTensor(2).uniform_(0, 1),
-                    'time_window': create_time_window(size=size)
+                    'time_window': create_time_window(size=size),
+                    'service_time': torch.Tensor([0])
                 }
                 for i in range(num_samples)
             ]
+
+#             for i in range(len(self.data)):
+#                 cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
+#                 distance = torch.cdist(cated_array, cated_array, p=2)
+#                 self.data[i]['loc'] = distance[1:]
+#                 self.data[i]['depot'] = distance[0, :]
 
         self.size = len(self.data)
 
