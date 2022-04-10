@@ -231,11 +231,12 @@ class VRPDataset(Dataset):
                 for i in range(num_samples)
             ]
 
-#             for i in range(len(self.data)):
-#                 cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
-#                 distance = torch.cdist(cated_array, cated_array, p=2)
-#                 self.data[i]['loc'] = distance[1:]
-#                 self.data[i]['depot'] = distance[0, :]
+            for i in range(len(self.data)):
+                cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
+                distance = torch.cdist(cated_array, cated_array, p=2)
+                # self.data[i]['loc'] = distance[1:]
+                # self.data[i]['depot'] = distance[0, :]
+                self.data[i]['matrix'] = distance
 
         self.size = len(self.data)
 
