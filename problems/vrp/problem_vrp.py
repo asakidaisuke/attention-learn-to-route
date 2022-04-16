@@ -44,8 +44,8 @@ class CVRP(object):
             assert (used_cap <= CVRP.VEHICLE_CAPACITY + 1e-5).all(), "Used more than capacity"
 
         # Gather dataset in order of tour
-        loc_with_depot = torch.cat((dataset['depot'][:, None, :], dataset['loc']), 1)
-        d = loc_with_depot.gather(1, pi[..., None].expand(*pi.size(), loc_with_depot.size(-1)))
+        # loc_with_depot = torch.cat((dataset['depot'][:, None, :], dataset['loc']), 1)
+        # d = loc_with_depot.gather(1, pi[..., None].expand(*pi.size(), loc_with_depot.size(-1)))
 
         # Length is distance (L2-norm of difference) of each next location to its prev and of first and last to depot
         # return (
@@ -207,6 +207,14 @@ class VRPDataset(Dataset):
                 data['time_window'] = create_time_window(size=len(data['loc']))
             for data in self.data:
                 data['service_time'] = torch.Tensor([0])
+
+            for i in range(len(self.data)):
+                cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
+                distance = torch.cdist(cated_array, cated_array, p=2)
+                # self.data[i]['loc'] = distance[1:]
+                # self.data[i]['depot'] = distance[0, :]
+                self.data[i]['matrix'] = distance
+
         else:
 
             # From VRP with RL paper https://arxiv.org/abs/1802.04240
@@ -237,6 +245,8 @@ class VRPDataset(Dataset):
                 # self.data[i]['loc'] = distance[1:]
                 # self.data[i]['depot'] = distance[0, :]
                 self.data[i]['matrix'] = distance
+                del self.data[i]['loc']
+
 
         self.size = len(self.data)
 

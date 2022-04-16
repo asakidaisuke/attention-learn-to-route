@@ -86,10 +86,10 @@ class AttentionModel(nn.Module):
                 node_dim = 4  # x, y, expected_prize, penalty
             else:
                 # node_dim = 3  # x, y, demand / prize
-                node_dim = 5 # CHANGE dim
+                node_dim = 3 # CHANGE dim
 
             # Special embedding projection for depot node
-            self.init_embed_depot = nn.Linear(2, embedding_dim)
+            self.init_embed_depot = nn.Linear(1, embedding_dim)
             
             if self.is_vrp and self.allow_partial:  # Need to include the demand if split delivery allowed
                 self.project_node_step = nn.Linear(1, 3 * embedding_dim, bias=False)
@@ -135,7 +135,7 @@ class AttentionModel(nn.Module):
         if self.checkpoint_encoder and self.training:  # Only checkpoint if we need gradients
             embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
         else:
-            embeddings, _ = self.embedder(self._init_embed(input))
+            embeddings, _ = self.embedder(self._init_embed(input), input['matrix'])
 
         _log_p, pi = self._inner(input, embeddings)
 
@@ -212,16 +212,13 @@ class AttentionModel(nn.Module):
             else:
                 assert self.is_pctsp
                 features = ('deterministic_prize', 'penalty')
+            batch_size = input['depot'].shape[0]
             return torch.cat(
                 (
-                    self.init_embed_depot(input['depot'])[:, None, :],
+                    self.init_embed_depot(torch.ones(batch_size,1))[:, None, :],
                     # CHANGE input
-                    self.init_embed(torch.cat((input['loc'], *(input[feat][:, :, None] for feat in ('demand',)),
+                    self.init_embed(torch.cat((*(input[feat][:, :, None] for feat in ('demand',)),
                                input['time_window'][:, 1:, :]), -1))
-                    # self.init_embed(torch.cat((
-                    #     input['loc'],
-                    #     *(input[feat][:, :, None] for feat in features)
-                    # ), -1))
                 ),
                 1
             )

@@ -10,6 +10,10 @@ class SkipConnection(nn.Module):
         super(SkipConnection, self).__init__()
         self.module = module
 
+    def insert_matrix_to_atteintion_layer(self, matrix):
+        if self.module._get_name() == "MultiHeadAttention":
+            self.module.insert_matrix(matrix)
+
     def forward(self, input):
         return input + self.module(input)
 
@@ -43,6 +47,7 @@ class MultiHeadAttention(nn.Module):
         self.W_val = nn.Parameter(torch.Tensor(n_heads, input_dim, val_dim))
 
         self.W_out = nn.Parameter(torch.Tensor(n_heads, val_dim, embed_dim))
+        self.ratio = torch.Tensor(n_heads).data.uniform_(0,1)
 
         self.init_parameters()
 
@@ -51,6 +56,9 @@ class MultiHeadAttention(nn.Module):
         for param in self.parameters():
             stdv = 1. / math.sqrt(param.size(-1))
             param.data.uniform_(-stdv, stdv)
+
+    def insert_matrix(self, matrix):
+        self.matrix = matrix
 
     def forward(self, q, h=None, mask=None):
         """
@@ -86,6 +94,8 @@ class MultiHeadAttention(nn.Module):
 
         # Calculate compatibility (n_heads, batch_size, n_query, graph_size)
         compatibility = self.norm_factor * torch.matmul(Q, K.transpose(2, 3))
+        # add weight effect here to compatibility
+        compatibility = self.ratio[:,None,None,None] * (-1) * self.matrix[None, :, :, :] + compatibility
 
         # Optionally apply mask to prevent attention
         if mask is not None:
@@ -194,19 +204,23 @@ class GraphAttentionEncoder(nn.Module):
 
         # To map input to embedding space
         self.init_embed = nn.Linear(node_dim, embed_dim) if node_dim is not None else None
-
+        self.n_layers = n_layers
         self.layers = nn.Sequential(*(
             MultiHeadAttentionLayer(n_heads, embed_dim, feed_forward_hidden, normalization)
             for _ in range(n_layers)
         ))
 
-    def forward(self, x, mask=None):
+    def insert_matrix(self, matrix):
+        for i in range(self.n_layers):
+            self.layers[i][0].insert_matrix_to_atteintion_layer(matrix)
+
+    def forward(self, x, matrix, mask=None):
 
         assert mask is None, "TODO mask not yet supported!"
 
         # Batch multiply to get initial embeddings of nodes
         h = self.init_embed(x.view(-1, x.size(-1))).view(*x.size()[:2], -1) if self.init_embed is not None else x
-
+        self.insert_matrix(matrix)
         h = self.layers(h)
 
         return (
