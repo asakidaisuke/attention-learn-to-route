@@ -238,12 +238,16 @@ class VRPDataset(Dataset):
                 }
                 for i in range(num_samples)
             ]
-
+            # add service_time
+            service_time = random.uniform(0, 1.0)
             for i in range(len(self.data)):
                 cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
                 distance = torch.cdist(cated_array, cated_array, p=2)
-                # self.data[i]['loc'] = distance[1:]
-                # self.data[i]['depot'] = distance[0, :]
+                if True:  # service time
+                    if service_time > 0.7:
+                        distance[1:] += 0.9
+                    else:
+                        distance[1:] += 0.1
                 self.data[i]['matrix'] = distance
                 del self.data[i]['loc']
 
