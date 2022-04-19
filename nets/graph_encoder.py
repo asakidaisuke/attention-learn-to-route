@@ -94,8 +94,6 @@ class MultiHeadAttention(nn.Module):
 
         # Calculate compatibility (n_heads, batch_size, n_query, graph_size)
         compatibility = self.norm_factor * torch.matmul(Q, K.transpose(2, 3))
-        # add weight effect here to compatibility
-        compatibility = self.ratio[:,None,None,None] * (-1) * self.matrix[None, :, :, :] + compatibility
 
         # Optionally apply mask to prevent attention
         if mask is not None:

@@ -248,9 +248,8 @@ class VRPDataset(Dataset):
 #                         distance[1:] += 0.9
 #                     else:
 #                         distance[1:] += 0.1
-                distance[1:] += 0.9
+#                 distance[1:] += 0.1
                 self.data[i]['matrix'] = distance
-                del self.data[i]['loc']
 
 
         self.size = len(self.data)
