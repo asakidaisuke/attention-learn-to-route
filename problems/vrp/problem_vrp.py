@@ -183,9 +183,9 @@ def create_time_window(size, window_scale = 15):
         elif r >= 0.5 and r < 0.7:
             t[0] = 0
             if t[1] == 0 or t[1] == 1:
-                t[1] = 2
+                t[1] = 3
         else:
-            t[1] = t[0] + 3
+            t[1] = t[0] + 2
     tensor = torch.cat((torch.zeros((1, 2)), tensor))
 #     print(tensor)
     return tensor
@@ -243,11 +243,12 @@ class VRPDataset(Dataset):
             for i in range(len(self.data)):
                 cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
                 distance = torch.cdist(cated_array, cated_array, p=2)
-                if True:  # service time
-                    if service_time > 0.7:
-                        distance[1:] += 0.9
-                    else:
-                        distance[1:] += 0.1
+#                 if True:  # service time
+#                     if service_time > 0.7:
+#                         distance[1:] += 0.9
+#                     else:
+#                         distance[1:] += 0.1
+                distance[1:] += 0.9
                 self.data[i]['matrix'] = distance
                 del self.data[i]['loc']
 
