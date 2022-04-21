@@ -248,7 +248,7 @@ class VRPDataset(Dataset):
 #                         distance[1:] += 0.9
 #                     else:
 #                         distance[1:] += 0.1
-#                 distance[1:] += 0.1
+                distance[1:] += service_time
                 self.data[i]['matrix'] = distance
 
 
