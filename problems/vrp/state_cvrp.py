@@ -107,7 +107,7 @@ class StateCVRP(NamedTuple):
         cost = self.cost
         cost[reset_time_mask | is_depot] += current_time.squeeze()[reset_time_mask | is_depot]
 
-        current_time += self.service_time
+#         current_time += self.service_time
         current_time[reset_time_mask | is_depot] = 0
         current_time_list = self.current_time_list
         current_time_list.append(current_time)

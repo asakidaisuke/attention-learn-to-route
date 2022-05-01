@@ -164,31 +164,47 @@ def make_instance(args):
         'depot': torch.tensor(depot, dtype=torch.float) / grid_size
     }
 
-def create_time_window(size, window_scale = 15):
-    tensor = torch.randint(15, (size, 2))
+# def create_time_window(size, window_scale = 15):
+#     tensor = torch.randint(15, (size, 2))
+# #     for t in tensor:
+# #         if t[0] > t[1]:
+# #             temp = t[1].clone().detach()
+# #             t[1] = t[0]
+# #             t[0] = temp
+# #         elif t[0] == t[1]:
+# #             t[1] = t[1] + int(window_scale * 0.2)
+# #         if t[1] - t[0] > 3:
+# #             t[1] -= 3
+# #         t[1] += 1  # prevent unsined jobs
 #     for t in tensor:
-#         if t[0] > t[1]:
-#             temp = t[1].clone().detach()
-#             t[1] = t[0]
-#             t[0] = temp
-#         elif t[0] == t[1]:
-#             t[1] = t[1] + int(window_scale * 0.2)
-#         if t[1] - t[0] > 3:
-#             t[1] -= 3
-#         t[1] += 1  # prevent unsined jobs
+#         r = random.uniform(0,1.0)
+#         if r < 0.5:
+#             t[1] = t[0] + 2
+#         elif r >= 0.5 and r < 0.7:
+#             t[0] = 0
+#             if t[1] == 0 or t[1] == 1:
+#                 t[1] = 3
+#         else:
+#             t[1] = t[0] + 2
+#     tensor = torch.cat((torch.zeros((1, 2)), tensor))
+#     return tensor
+
+def create_time_window(size, require):
+    tensor = (torch.FloatTensor(size,2).uniform_(100, 849).int()).float() / 100
+    tensor = torch.maximum(tensor, require.view(size,-1)+0.01)
     for t in tensor:
-        r = random.uniform(0,1.0)
-        if r < 0.5:
-            t[1] = t[0] + 2
-        elif r >= 0.5 and r < 0.7:
-            t[0] = 0
-            if t[1] == 0 or t[1] == 1:
-                t[1] = 3
-        else:
-            t[1] = t[0] + 2
+        r = random.gauss(115.96, 35.78) / 100
+        t[1] = min(t[0] + max(r, 0.01), 10.0)
     tensor = torch.cat((torch.zeros((1, 2)), tensor))
-#     print(tensor)
     return tensor
+
+def create_demand(size):
+    base = (torch.FloatTensor(size).normal_(mean=15, std=10).int()).float() / 1000
+    low_clip = torch.ones((1, size)).float() / 1000
+    hight_clip = torch.ones((1,size)).float() * 42 / 1000
+    low_clipped = torch.maximum(base, low_clip)
+    hight_clipped = torch.minimum(hight_clip, low_clipped)
+    return hight_clipped[0]
 
 class VRPDataset(Dataset):
     
@@ -204,53 +220,39 @@ class VRPDataset(Dataset):
             self.data = [make_instance(args) for args in data[offset:offset+num_samples]]
             # give the time window information
             for data in self.data:
-                data['time_window'] = create_time_window(size=len(data['loc']))
-            for data in self.data:
                 data['service_time'] = torch.Tensor([0])
 
             for i in range(len(self.data)):
                 cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
                 distance = torch.cdist(cated_array, cated_array, p=2)
-                # self.data[i]['loc'] = distance[1:]
-                # self.data[i]['depot'] = distance[0, :]
+                self.data[i]['time_window'] = create_time_window(len(data['loc']), distance[0][1:])
                 self.data[i]['matrix'] = distance
 
         else:
 
-            # From VRP with RL paper https://arxiv.org/abs/1802.04240
-            CAPACITIES = {
-                10: 20.,
-                20: 30.,
-                50: 40.,
-                100: 50.,
-                200: 60.,
-                300: 60.
-            }
-
-            self.data = [
-                {
-                    'loc': torch.FloatTensor(size, 2).uniform_(0, 1),
-                    # Uniform 1 - 9, scaled by capacities
-                    'demand': (torch.FloatTensor(size).uniform_(0, 9).int() + 1).float() / CAPACITIES[size],
-                    'depot': torch.FloatTensor(2).uniform_(0, 1),
-                    'time_window': create_time_window(size=size),
-                    'service_time': torch.Tensor([0])
-                }
-                for i in range(num_samples)
-            ]
-            # add service_time
-            service_time = random.uniform(0, 1.0)
-            for i in range(len(self.data)):
-                cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
+            self.data = []
+            for i in range(num_samples):
+                loc = torch.FloatTensor(size, 2).uniform_(0, 1)
+                demand = create_demand(size)
+                depot = torch.FloatTensor(2).uniform_(0, 1)
+                service_time = torch.Tensor([0.1])
+#                 service_time = 0
+                
+                cated_array = torch.cat((depot[None, 0:], loc))
                 distance = torch.cdist(cated_array, cated_array, p=2)
-#                 if True:  # service time
-#                     if service_time > 0.7:
-#                         distance[1:] += 0.9
-#                     else:
-#                         distance[1:] += 0.1
                 distance[1:] += service_time
-                self.data[i]['matrix'] = distance
-                del self.data[i]['loc']
+                
+                time_window = create_time_window(size, distance[0][1:])
+                
+                self.data.append({
+                    'loc': loc,
+                    'demand': demand,
+                    'depot': depot,
+                    'time_window': time_window,
+                    'service_time': service_time,
+                    'matrix': distance
+                })
+                
 
 
         self.size = len(self.data)
