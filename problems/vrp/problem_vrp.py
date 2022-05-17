@@ -227,6 +227,20 @@ class VRPDataset(Dataset):
                 distance = torch.cdist(cated_array, cated_array, p=2)
                 self.data[i]['time_window'] = create_time_window(len(data['loc']), distance[0][1:])
                 self.data[i]['matrix'] = distance
+                
+                if False: # for weighted
+                    self.data[i]['matrix'] *= 0.0
+                    self.data[i]['matrix'] += torch.Tensor(size+1,size+1).uniform_(0.0, 3.0)
+                    ind = np.diag_indices(self.data[i]['matrix'].shape[0])
+                    self.data[i]['matrix'][ind[0], ind[1]] = torch.zeros(self.data[i]['matrix'].shape[0])
+                    diff = self.data[i]['time_window'].T[1] - self.data[i]['time_window'].T[0]
+                    self.data[i]['time_window'].T[0] = torch.maximum(self.data[i]['time_window'].T[0], self.data[i]['matrix'][0]+0.01)
+                    self.data[i]['time_window'].T[0][0] = 0
+                    self.data[i]['time_window'].T[1] = diff + self.data[i]['time_window'].T[0]
+#                     self.data[i]['time_window'].T[0] *= 0.8 
+#                     self.data[i]['time_window'].T[1] *= 1.2
+
+
 
         else:
 
@@ -243,6 +257,18 @@ class VRPDataset(Dataset):
                 distance[1:] += service_time
                 
                 time_window = create_time_window(size, distance[0][1:])
+                
+                if False: # for weighted
+                    distance *= 0.0
+                    distance += torch.Tensor(size+1,size+1).uniform_(0.0, 3.0)
+                    ind = np.diag_indices(distance.shape[0])
+                    distance[ind[0], ind[1]] = torch.zeros(distance.shape[0])
+                    diff = time_window.T[1] - time_window.T[0]
+                    time_window.T[0] = torch.maximum(time_window.T[0], distance[0]+0.01)
+                    time_window.T[0][0] = 0
+                    time_window.T[1] = diff + time_window.T[0]
+#                     time_window.T[0] *= 0.8 
+#                     time_window.T[1] *= 1.2
                 
                 self.data.append({
                     'loc': loc,
