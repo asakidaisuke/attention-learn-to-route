@@ -4,6 +4,8 @@ import os
 import pickle
 import random
 
+import numpy as np
+
 from problems.vrp.state_cvrp import StateCVRP
 from utils.beam_search import beam_search
 
@@ -54,7 +56,15 @@ class CVRP(object):
         #     + (d[:, -1] - dataset['depot']).norm(p=2, dim=1)  # Last to depot, will be 0 if depot is last
         # ), None
         # CHANGE change cost
-        return state.cost, None
+        
+        total_distance = []
+        for i_t in range(len(pi)):
+            selected = torch.index_select(state.matrix[i_t], 0, pi[i_t].unfold(0,2,1).T[0])
+            selecteded = torch.gather(selected, 1, pi[i_t].unfold(0,2,1).T[1].unsqueeze(1))
+            total_distance.append(selecteded.sum())
+#         print(state.cost, torch.Tensor(total_distance))
+#         return state.cost, None
+        return torch.Tensor(total_distance), None
 
     @staticmethod
     def make_dataset(*args, **kwargs):
@@ -228,6 +238,18 @@ class VRPDataset(Dataset):
                 self.data[i]['time_window'] = create_time_window(len(data['loc']), distance[0][1:])
                 self.data[i]['matrix'] = distance
 
+                if False: # for weighted
+                    self.data[i]['matrix'] *= 0.0
+                    self.data[i]['matrix'] += torch.Tensor(size+1,size+1).uniform_(0.0, 3.0)
+                    ind = np.diag_indices(self.data[i]['matrix'].shape[0])
+                    self.data[i]['matrix'][ind[0], ind[1]] = torch.zeros(self.data[i]['matrix'].shape[0])
+                    diff = self.data[i]['time_window'].T[1] - self.data[i]['time_window'].T[0]
+                    self.data[i]['time_window'].T[0] = torch.maximum(self.data[i]['time_window'].T[0], self.data[i]['matrix'][0]+0.01)
+                    self.data[i]['time_window'].T[0][0] = 0
+                    self.data[i]['time_window'].T[1] = diff + self.data[i]['time_window'].T[0]
+#                     self.data[i]['time_window'].T[0] *= 0.8 
+#                     self.data[i]['time_window'].T[1] *= 1.2
+
         else:
 
             self.data = []
@@ -240,9 +262,20 @@ class VRPDataset(Dataset):
                 
                 cated_array = torch.cat((depot[None, 0:], loc))
                 distance = torch.cdist(cated_array, cated_array, p=2)
-                distance[1:] += service_time
-                
+#                 distance[1:] += service_time
+
                 time_window = create_time_window(size, distance[0][1:])
+                if False: # for weighted
+                    distance *= 0.0
+                    distance += torch.Tensor(size+1,size+1).uniform_(0.0, 3.0)
+                    ind = np.diag_indices(distance.shape[0])
+                    distance[ind[0], ind[1]] = torch.zeros(distance.shape[0])
+                    diff = time_window.T[1] - time_window.T[0]
+                    time_window.T[0] = torch.maximum(time_window.T[0], distance[0]+0.01)
+                    time_window.T[0][0] = 0
+                    time_window.T[1] = diff + time_window.T[0]
+#                     time_window.T[0] *= 0.8 
+#                     time_window.T[1] *= 1.2
                 
                 self.data.append({
                     'loc': loc,
