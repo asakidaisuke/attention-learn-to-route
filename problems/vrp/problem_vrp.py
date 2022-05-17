@@ -230,7 +230,7 @@ class VRPDataset(Dataset):
 #                 self.data[i]['time_window'][:, 0] = 0
 #                 self.data[i]['time_window'][:, 1] = 10
                 self.data[i]['matrix'] = distance
-                if True: # for weighted
+                if False: # for weighted
                     self.data[i]['matrix'] *= 0.0
                     self.data[i]['matrix'] += torch.Tensor(size+1,size+1).uniform_(0.0, 3.0)
                     ind = np.diag_indices(self.data[i]['matrix'].shape[0])
@@ -259,7 +259,7 @@ class VRPDataset(Dataset):
 #                 time_window[:, 0] = 0
 #                 time_window[:, 1] = 10
                 
-                if True: # for weighted
+                if False: # for weighted
                     distance *= 0.0
                     distance += torch.Tensor(size+1,size+1).uniform_(0.0, 3.0)
                     ind = np.diag_indices(distance.shape[0])
