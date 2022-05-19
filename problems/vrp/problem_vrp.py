@@ -229,10 +229,11 @@ class VRPDataset(Dataset):
                 self.data[i]['time_window'] = create_time_window(len(data['loc']), distance[0][1:])
 #                 self.data[i]['time_window'][:, 0] = 0
 #                 self.data[i]['time_window'][:, 1] = 10
+#                 self.data[i]['time_window'][1:, 1] *= 1.1
                 self.data[i]['matrix'] = distance
-                if True: # for weighted
+                if False: # for weighted
 #                     self.data[i]['matrix'] *= 0.0
-                    self.data[i]['matrix'] += torch.Tensor(size+1,size+1).uniform_(0.0, 2.0)
+                    self.data[i]['matrix'] += torch.Tensor(size+1,size+1).uniform_(0.0, 1.0)
                     ind = np.diag_indices(self.data[i]['matrix'].shape[0])
                     self.data[i]['matrix'][ind[0], ind[1]] = torch.zeros(self.data[i]['matrix'].shape[0])
                     diff = self.data[i]['time_window'].T[1] - self.data[i]['time_window'].T[0]
@@ -257,9 +258,9 @@ class VRPDataset(Dataset):
                 distance[1:] += service_time
                 time_window = create_time_window(size, distance[0][1:])
 #                 time_window[:, 0] = 0
-#                 time_window[:, 1] = 10
+                time_window[1:, 1] *= 1.1
                 
-                if True: # for weighted
+                if False: # for weighted
 #                     distance *= 0.0
                     distance += torch.Tensor(size+1,size+1).uniform_(0.0, 2.0)
                     ind = np.diag_indices(distance.shape[0])
