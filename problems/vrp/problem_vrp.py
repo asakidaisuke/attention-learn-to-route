@@ -227,9 +227,10 @@ class VRPDataset(Dataset):
                 cated_array = torch.cat((self.data[i]['depot'][None, 0:], self.data[i]['loc']))
                 distance = torch.cdist(cated_array, cated_array, p=2)
                 self.data[i]['time_window'] = create_time_window(len(data['loc']), distance[0][1:])
-#                 self.data[i]['time_window'][:, 0] = 0
-#                 self.data[i]['time_window'][:, 1] = 10
-#                 self.data[i]['time_window'][1:, 1] *= 1.1
+                diff = self.data[i]['time_window'][1:, 1] - self.data[i]['time_window'][1:, 0]
+                self.data[i]['time_window'][1:, 1] = diff*2.0 + self.data[i]['time_window'][1:, 0]
+                max_clip = torch.ones(size) * 10.0
+                self.data[i]['time_window'][1:, 1] = torch.minimum(self.data[i]['time_window'][1:, 1], max_clip)
                 self.data[i]['matrix'] = distance
                 if False: # for weighted
 #                     self.data[i]['matrix'] *= 0.0
@@ -257,8 +258,10 @@ class VRPDataset(Dataset):
                 distance = torch.cdist(cated_array, cated_array, p=2)
                 distance[1:] += service_time
                 time_window = create_time_window(size, distance[0][1:])
-#                 time_window[:, 0] = 0
-                time_window[1:, 1] *= 1.1
+                diff = time_window[1:, 1] - time_window[1:, 0]
+                time_window[1:, 1] = diff*2.0 + time_window[1:, 0]
+                max_clip = torch.ones(size) * 10.0
+                time_window[1:, 1] = torch.minimum(time_window[1:, 1], max_clip)
                 
                 if False: # for weighted
 #                     distance *= 0.0
