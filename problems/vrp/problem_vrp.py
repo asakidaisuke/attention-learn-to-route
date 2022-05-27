@@ -228,11 +228,11 @@ class VRPDataset(Dataset):
                 distance = torch.cdist(cated_array, cated_array, p=2)
                 self.data[i]['time_window'] = create_time_window(len(data['loc']), distance[0][1:])
                 diff = self.data[i]['time_window'][1:, 1] - self.data[i]['time_window'][1:, 0]
-                self.data[i]['time_window'][1:, 1] = diff*2.0 + self.data[i]['time_window'][1:, 0]
+                self.data[i]['time_window'][1:, 1] = diff*1.0 + self.data[i]['time_window'][1:, 0]
                 max_clip = torch.ones(size) * 10.0
                 self.data[i]['time_window'][1:, 1] = torch.minimum(self.data[i]['time_window'][1:, 1], max_clip)
                 self.data[i]['matrix'] = distance
-                if False: # for weighted
+                if True: # for weighted
 #                     self.data[i]['matrix'] *= 0.0
                     self.data[i]['matrix'] += torch.Tensor(size+1,size+1).uniform_(0.0, 1.0)
                     ind = np.diag_indices(self.data[i]['matrix'].shape[0])
@@ -241,8 +241,6 @@ class VRPDataset(Dataset):
                     self.data[i]['time_window'].T[0] = torch.maximum(self.data[i]['time_window'].T[0], self.data[i]['matrix'][0]+0.01)
                     self.data[i]['time_window'].T[0][0] = 0
                     self.data[i]['time_window'].T[1] = diff + self.data[i]['time_window'].T[0]
-#                     self.data[i]['time_window'].T[0] *= 0.8 
-#                     self.data[i]['time_window'].T[1] *= 1.2
 
         else:
 
@@ -259,11 +257,11 @@ class VRPDataset(Dataset):
                 distance[1:] += service_time
                 time_window = create_time_window(size, distance[0][1:])
                 diff = time_window[1:, 1] - time_window[1:, 0]
-                time_window[1:, 1] = diff*2.0 + time_window[1:, 0]
+                time_window[1:, 1] = diff*1.0 + time_window[1:, 0]
                 max_clip = torch.ones(size) * 10.0
                 time_window[1:, 1] = torch.minimum(time_window[1:, 1], max_clip)
                 
-                if False: # for weighted
+                if True: # for weighted
 #                     distance *= 0.0
                     distance += torch.Tensor(size+1,size+1).uniform_(0.0, 2.0)
                     ind = np.diag_indices(distance.shape[0])
@@ -272,8 +270,6 @@ class VRPDataset(Dataset):
                     time_window.T[0] = torch.maximum(time_window.T[0], distance[0]+0.01)
                     time_window.T[0][0] = 0
                     time_window.T[1] = diff + time_window.T[0]
-#                     time_window.T[0] *= 0.8 
-#                     time_window.T[1] *= 1.2
                 
                 self.data.append({
                     'loc': loc,
