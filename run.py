@@ -3,6 +3,7 @@
 import os
 import json
 import pprint as pp
+import pickle
 
 import torch
 import torch.optim as optim
@@ -10,7 +11,7 @@ from tensorboard_logger import Logger as TbLogger
 
 from nets.critic_network import CriticNetwork
 from options import get_options
-from train import train_epoch, validate, get_inner_model
+from train import train_epoch, validate, get_inner_model, COST
 from reinforce_baselines import NoBaseline, ExponentialBaseline, CriticBaseline, RolloutBaseline, WarmupBaseline
 from nets.attention_model import AttentionModel
 from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
@@ -166,7 +167,10 @@ def run(opts):
                 tb_logger,
                 opts
             )
-
+            if epoch == 24:
+                with open('old_learning_curve.pickle', 'wb') as f:
+                    pickle.dump(COST, f)
+            print("here is cost ", COST)
 
 if __name__ == "__main__":
     run(get_options())

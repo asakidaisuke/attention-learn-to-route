@@ -123,7 +123,7 @@ def train_epoch(model, optimizer, baseline, lr_scheduler, epoch, val_dataset, pr
     # lr_scheduler should be called at end of epoch
     lr_scheduler.step()
 
-
+COST=[]
 def train_batch(
         model,
         optimizer,
@@ -141,7 +141,7 @@ def train_batch(
 
     # Evaluate model, get costs and log probabilities
     cost, log_likelihood = model(x)
-
+    COST.append(float(sum(cost)/len(cost)))
     # Evaluate baseline, get baseline loss if any (only for critic)
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
 
